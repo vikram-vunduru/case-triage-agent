@@ -1,0 +1,35 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Vector DB data (regenerated on startup from Confluence)
+chroma_db/
+
+# Eval artifacts
+evals/last_run.json
+
+# Internal docs (kept local — not for public repo)
+docs/
+
+# Cloudflared local config
+.cloudflared/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

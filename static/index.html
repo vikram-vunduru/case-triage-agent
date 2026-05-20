@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Case Triage Multi-Agent — Salesforce · Confluence · Claude</title>
+  <link rel="stylesheet" href="static/styles.css?v=rich-1" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CT</div>
+      <div>
+        <h1>Multi-Agent Case Triage</h1>
+        <p>Orchestrator · 6 specialized agents · 2 guardrail stages · trust gate · live evals</p>
+      </div>
+    </div>
+    <div class="mode-pill" id="mode-pill">
+      <span class="dot"></span><span id="mode-text">connecting…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============================ LEFT: ARCHITECTURE ============================ -->
+    <section class="panel architecture">
+      <div class="panel-head">
+        <h2>Architecture</h2>
+        <div class="legend">
+          <span class="lg lg-guard">Guardrail</span>
+          <span class="lg lg-orch">Orchestrator</span>
+          <span class="lg lg-agent">Sub-agent</span>
+          <span class="lg lg-trust">Trust</span>
+        </div>
+      </div>
+
+      <div class="diagram">
+
+        <!-- INPUT GUARDRAILS -->
+        <div class="stage stage-guard lg-guard" data-node="input_guardrails">
+          <div class="stage-head">
+            <span class="stage-title">Input guardrails</span>
+            <span class="stage-status"></span>
+          </div>
+          <div class="check-row" data-checks="input">
+            <span class="check" data-check="pii">PII</span>
+            <span class="check" data-check="injection">Prompt injection</span>
+            <span class="check" data-check="scope">Topic scope</span>
+            <span class="check" data-check="abuse">Abuse</span>
+          </div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- ORCHESTRATOR -->
+        <div class="stage stage-orch lg-orch" data-node="orchestrator">
+          <div class="stage-head">
+            <span class="stage-title">Orchestrator</span>
+            <span class="stage-status"></span>
+          </div>
+          <div class="stage-sub" data-sub="orchestrator">Plan · route · synthesize</div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- TRIAGE -->
+        <div class="agent lg-agent" data-node="triage">
+          <div class="agent-head">
+            <span class="agent-icon">T</span>
+            <span class="agent-title">Triage Agent</span>
+            <span class="agent-status"></span>
+          </div>
+          <div class="tool-chips">
+            <span class="chip">classify_intent</span>
+            <span class="chip">classify_risk</span>
+            <span class="chip">check_topic_in_scope</span>
+          </div>
+          <div class="agent-out" data-out="triage">Waiting</div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- INVESTIGATOR -->
+        <div class="agent lg-agent" data-node="investigator">
+          <div class="agent-head">
+            <span class="agent-icon">I</span>
+            <span class="agent-title">Investigator Agent</span>
+            <span class="agent-status"></span>
+          </div>
+          <div class="tool-chips">
+            <span class="chip sf">sf_get_case</span>
+            <span class="chip sf">sf_get_account</span>
+            <span class="chip sf">sf_get_related_cases</span>
+            <span class="chip kb">confluence_search</span>
+          </div>
+          <div class="agent-out" data-out="investigator">Waiting</div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- RESOLVER -->
+        <div class="agent lg-agent" data-node="resolver">
+          <div class="agent-head">
+            <span class="agent-icon">R</span>
+            <span class="agent-title">Resolver Agent</span>
+            <span class="agent-status"></span>
+          </div>
+          <div class="tool-chips">
+            <span class="chip gen">pure generation</span>
+            <span class="chip">structured output</span>
+          </div>
+          <div class="agent-out" data-out="resolver">Waiting</div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- OUTPUT GUARDRAILS -->
+        <div class="stage stage-guard lg-guard" data-node="output_guardrails">
+          <div class="stage-head">
+            <span class="stage-title">Output guardrails</span>
+            <span class="stage-status"></span>
+          </div>
+          <div class="check-row" data-checks="output">
+            <span class="check" data-check="groundedness">Groundedness</span>
+            <span class="check" data-check="citations">Citations</span>
+            <span class="check" data-check="pii_leak">PII leak</span>
+            <span class="check" data-check="tone">Tone</span>
+          </div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- CRITIC -->
+        <div class="agent lg-agent" data-node="critic">
+          <div class="agent-head">
+            <span class="agent-icon">C</span>
+            <span class="agent-title">Critic Agent <span class="badge-mini">LLM-as-judge</span></span>
+            <span class="agent-status"></span>
+          </div>
+          <div class="tool-chips">
+            <span class="chip judge">score_resolution</span>
+          </div>
+          <div class="agent-out" data-out="critic">Waiting</div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- TRUST GATE -->
+        <div class="stage stage-trust lg-trust" data-node="trust_gate">
+          <div class="stage-head">
+            <span class="stage-title">Trust gate</span>
+            <span class="stage-status"></span>
+          </div>
+          <div class="stage-sub" data-sub="trust_gate">confidence · critic · policy</div>
+        </div>
+
+        <div class="branch-wrap">
+          <div class="edge edge-left"></div>
+          <div class="edge edge-right"></div>
+        </div>
+
+        <div class="row two">
+          <!-- ACTION -->
+          <div class="agent lg-agent" data-node="action">
+            <div class="agent-head">
+              <span class="agent-icon">A</span>
+              <span class="agent-title">Action Agent</span>
+              <span class="agent-status"></span>
+            </div>
+            <div class="tool-chips">
+              <span class="chip sf">sf_post_chatter</span>
+              <span class="chip sf">sf_update_case</span>
+            </div>
+            <div class="agent-out" data-out="action">Waiting</div>
+          </div>
+
+          <!-- ESCALATION -->
+          <div class="agent lg-agent" data-node="escalation">
+            <div class="agent-head">
+              <span class="agent-icon">E</span>
+              <span class="agent-title">Escalation Agent</span>
+              <span class="agent-status"></span>
+            </div>
+            <div class="tool-chips">
+              <span class="chip esc">escalate_to_queue</span>
+              <span class="chip sf">sf_post_chatter</span>
+            </div>
+            <div class="agent-out" data-out="escalation">Waiting</div>
+          </div>
+        </div>
+
+        <div class="merge"></div>
+
+        <!-- OUTPUT -->
+        <div class="stage stage-output" data-node="output">
+          <div class="stage-head">
+            <span class="stage-title">Final output</span>
+            <span class="stage-status"></span>
+          </div>
+          <div class="stage-sub" data-sub="output">confidence · citations · actions</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================ RIGHT: RUN, TRACE, EVALS ============================ -->
+    <section class="panel run">
+      <div class="panel-head">
+        <h2>Run</h2>
+        <div class="mode-pill subtle" id="mode-detail">…</div>
+      </div>
+
+      <div class="controls">
+        <label for="case-select">Case</label>
+        <select id="case-select"></select>
+        <button id="run-btn" class="primary">Run pipeline</button>
+        <button id="clear-btn" class="ghost">Clear</button>
+      </div>
+
+      <div class="case-preview" id="case-preview">Select a case to preview.</div>
+      <div class="prior-run" id="prior-run" hidden>
+        <div class="prior-head">
+          <span class="prior-pill" id="prior-pill">previously processed</span>
+          <span class="muted" id="prior-meta"></span>
+        </div>
+        <div class="prior-section" id="prior-comment-section" hidden>
+          <div class="prior-label">Last customer-facing comment</div>
+          <div class="prior-body" id="prior-comment"></div>
+        </div>
+        <div class="prior-section" id="prior-chatter-section" hidden>
+          <div class="prior-label">Last internal Chatter (agent audit)</div>
+          <div class="prior-body" id="prior-chatter"></div>
+        </div>
+      </div>
+
+      <div class="trace-head">
+        <h3>Live trace</h3>
+        <span class="muted" id="trace-meta"></span>
+      </div>
+      <ol class="trace" id="trace"></ol>
+
+      <div class="final" id="final" hidden>
+        <h3>Resolution</h3>
+        <div class="final-meta">
+          <span class="badge" id="final-conf">confidence: —</span>
+          <span class="badge" id="final-actions">actions: —</span>
+          <span class="badge" id="final-escalated">escalated: —</span>
+          <span class="badge" id="final-gate">trust gate: —</span>
+        </div>
+        <div class="final-body" id="final-body"></div>
+        <div class="citations" id="final-citations"></div>
+      </div>
+
+      <div class="evals" id="evals" hidden>
+        <h3>Live evals <span class="muted" id="evals-overall"></span></h3>
+        <div class="eval-grid" id="eval-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="static/app.js?v=rich-1"></script>
+</body>
+</html>

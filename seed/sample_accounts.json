@@ -1,0 +1,44 @@
+{
+  "0013a00000ACME01": {
+    "Id": "0013a00000ACME01",
+    "Name": "Acme Corp",
+    "Industry": "Manufacturing",
+    "Tier__c": "Enterprise",
+    "AnnualRevenue": 850000000,
+    "NumberOfEmployees": 4200,
+    "OwnerName": "Priya Shah",
+    "Health__c": "Green",
+    "CSM__c": "Daniel Park",
+    "RenewalDate__c": "2026-09-30",
+    "OpenCaseCount": 4,
+    "Notes": "Strategic Enterprise account. SLA: P1 response within 1 hour, P2 within 4 hours. Federated SSO via Okta."
+  },
+  "0013a00000GLBX01": {
+    "Id": "0013a00000GLBX01",
+    "Name": "Globex Industries",
+    "Industry": "Energy",
+    "Tier__c": "Premier",
+    "AnnualRevenue": 2100000000,
+    "NumberOfEmployees": 11500,
+    "OwnerName": "Mei Tanaka",
+    "Health__c": "Yellow",
+    "CSM__c": "Lena Ortiz",
+    "RenewalDate__c": "2026-07-15",
+    "OpenCaseCount": 7,
+    "Notes": "Premier account, renewal approaching. SAML SSO via Azure AD. Corporate VPN egress IPs not yet on auth allow-list."
+  },
+  "0013a00000INTC01": {
+    "Id": "0013a00000INTC01",
+    "Name": "Initech Inc",
+    "Industry": "Software",
+    "Tier__c": "Standard",
+    "AnnualRevenue": 95000000,
+    "NumberOfEmployees": 480,
+    "OwnerName": "Tomasz Nowak",
+    "Health__c": "Green",
+    "CSM__c": "N/A",
+    "RenewalDate__c": "2026-12-01",
+    "OpenCaseCount": 2,
+    "Notes": "Standard tier. Self-serve customer."
+  }
+}
