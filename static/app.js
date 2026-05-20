@@ -12,11 +12,116 @@ const outEl  = (id) => document.querySelector(`[data-out="${id}"]`);
 let CASES = [];
 let MODE = { salesforce: "?", confluence: "?", model: "?" };
 
+// Demo password gate — fetched from /api/unlock-status on load.
+let DEMO_LOCKED = false;        // does the server require a password?
+let DEMO_UNLOCKED = false;      // does this browser have a valid token?
+const TOKEN_STORAGE_KEY = "case-triage-agent.demo-token";
+
 document.addEventListener("DOMContentLoaded", async () => {
   resetDiagram();
+  await initUnlock();
   await loadCases();
   bindUI();
 });
+
+// ---------- unlock / password gate ----------
+async function initUnlock() {
+  try {
+    const res = await fetch("api/unlock-status");
+    const d = await res.json();
+    DEMO_LOCKED = !!d.locked;
+  } catch { DEMO_LOCKED = false; }
+
+  const btn = document.querySelector("#unlock-btn");
+  if (!btn) return;
+
+  if (!DEMO_LOCKED) {
+    btn.hidden = true;
+    DEMO_UNLOCKED = true;
+    setRunEnabled(true);
+    return;
+  }
+
+  btn.hidden = false;
+  btn.addEventListener("click", onUnlockClick);
+
+  // If we have a cached token, verify it server-side.
+  const cached = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (cached) {
+    try {
+      const r = await fetch("api/unlock-verify", { headers: { "X-Demo-Token": cached } });
+      const d = await r.json();
+      if (d.valid) {
+        markUnlocked();
+        return;
+      }
+    } catch { /* ignore */ }
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+
+  markLocked();
+}
+
+async function onUnlockClick() {
+  if (DEMO_UNLOCKED) return;
+  const pwd = window.prompt("Enter the demo password to unlock the Run pipeline.");
+  if (!pwd) return;
+  try {
+    const res = await fetch("api/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd }),
+    });
+    if (!res.ok) {
+      alert("Wrong password.");
+      return;
+    }
+    const d = await res.json();
+    if (d.token) localStorage.setItem(TOKEN_STORAGE_KEY, d.token);
+    markUnlocked();
+  } catch (err) {
+    alert("Could not reach the server. Try again.");
+  }
+}
+
+function markLocked() {
+  const btn = document.querySelector("#unlock-btn");
+  if (!btn) return;
+  btn.classList.remove("unlocked");
+  btn.classList.add("locked");
+  btn.querySelector(".unlock-text").textContent = "Locked — click to unlock";
+  btn.title = "Click to enter the demo password";
+  DEMO_UNLOCKED = false;
+  setRunEnabled(false);
+}
+
+function markUnlocked() {
+  const btn = document.querySelector("#unlock-btn");
+  if (!btn) return;
+  btn.classList.remove("locked");
+  btn.classList.add("unlocked");
+  btn.querySelector(".unlock-text").textContent = "Unlocked";
+  btn.title = "Run pipeline is enabled";
+  DEMO_UNLOCKED = true;
+  setRunEnabled(true);
+}
+
+function setRunEnabled(enabled) {
+  const runBtn = document.querySelector("#run-btn");
+  if (!runBtn) return;
+  if (enabled) {
+    runBtn.disabled = false;
+    runBtn.title = "Run the multi-agent pipeline on the selected case";
+  } else {
+    runBtn.disabled = true;
+    runBtn.title = "Unlock the demo to enable the Run pipeline button";
+  }
+}
+
+function demoTokenHeader() {
+  const t = localStorage.getItem(TOKEN_STORAGE_KEY);
+  return t ? { "X-Demo-Token": t } : {};
+}
 
 function bindUI() {
   $("#run-btn").addEventListener("click", runAgent);
@@ -243,9 +348,18 @@ async function runAgent() {
   try {
     const res = await fetch("api/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...demoTokenHeader() },
       body: JSON.stringify({ case_id: caseId }),
     });
+    if (res.status === 401) {
+      // Token expired or never set — drop it and re-prompt.
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      markLocked();
+      alert("Demo is locked. Click 'Locked' in the top right to unlock.");
+      $("#run-btn").disabled = false;
+      $("#run-btn").textContent = "Run pipeline";
+      return;
+    }
     if (!res.ok) {
       const detail = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(detail.detail || "Failed to start run");

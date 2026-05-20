@@ -1,8 +1,12 @@
 # Case Triage Agent
 
+**Live demo:** <https://agents.vikramvunduru.com/case-triage-agent/>
+
 A multi-agent system that triages Salesforce Service Cloud Cases end-to-end. It reads incoming Cases, retrieves matching articles from a Confluence knowledge base, drafts a grounded customer reply, posts an audit trail, updates the Case — and escalates anything risky to a human, with a structured handoff.
 
 Built with Anthropic Claude, FastAPI, real Salesforce REST API (OAuth Client Credentials Flow), and Chroma for local vector search.
+
+> The live demo is password-gated to protect API credits — the page and architecture diagram are fully visible to all visitors, but the **Run pipeline** button requires unlocking with a shared password.
 
 ---
 
@@ -75,6 +79,7 @@ Every step is observable via Server-Sent Events to a live UI that visualizes the
 - **Offline eval harness** — golden-dataset CLI runner for CI-style regression checks.
 - **Case history preview** — when a Case has been processed before, the prior agent activity is shown before re-running.
 - **Session auto-refresh** — Salesforce CCF tokens transparently re-fetched on expiry.
+- **Optional password gate** — when `DEMO_PASSWORD` is set, the UI requires unlocking before the Run pipeline button works. Token persists in localStorage for 24 hours.
 
 ---
 
@@ -175,6 +180,8 @@ All configuration is via `.env`. See [`.env.example`](.env.example) for the full
 | `CONFIDENCE_THRESHOLD` | no | `0.6` | Below this, the trust gate escalates |
 | `REQUIRE_HUMAN_APPROVAL` | no | `false` | When `true`, every write requires an approval event |
 | `ROUTE_PREFIX` | no | empty | When deploying at a subpath (e.g. `/case-triage-agent`) |
+| `DEMO_PASSWORD` | no | empty | If set, the UI gates the Run button behind this password |
+| `DEMO_TOKEN_TTL_HOURS` | no | `24` | How long an unlock token stays valid |
 
 ---
 

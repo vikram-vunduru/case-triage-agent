@@ -28,5 +28,10 @@ class Settings(BaseSettings):
 
     route_prefix: str = ""
 
+    # When set, the UI requires entering this password before /api/run can be called.
+    # Leave empty to disable password protection entirely.
+    demo_password: str = ""
+    demo_token_ttl_hours: int = 24
+
 
 settings = Settings()
