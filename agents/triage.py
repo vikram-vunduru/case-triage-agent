@@ -81,11 +81,12 @@ class TriageAgent(SubAgent):
         self._classifications: dict[str, Any] = {}
 
     def execute_tool(self, tool_name: str, tool_input: dict) -> dict:
-        # These "tools" are model-self-classifications. We echo them back as confirmation
-        # and store them so the parse_output step can fall back to them if the model
-        # forgets the <result> wrapper.
+        # These "tools" are model-self-classifications. We store them so the
+        # parse_output step can fall back to them if the model forgets the
+        # <result> wrapper. Returning tool_input itself (rather than a wrapper)
+        # makes the live trace show the actual decision, e.g. "intent: auth_issue".
         self._classifications[tool_name] = tool_input
-        return {"recorded": tool_input}
+        return tool_input
 
     def parse_output(self, text: str) -> dict:
         parsed = super().parse_output(text)

@@ -180,6 +180,11 @@ class SubAgent:
 def _preview_tool_result(tool_name: str, result: dict) -> str:
     if isinstance(result, dict) and "error" in result:
         return f"error: {str(result['error'])[:120]}"
+
+    # Unwrap "{recorded: {...}}" — Triage/Critic agents echo their tool_input back wrapped.
+    if isinstance(result, dict) and "recorded" in result and isinstance(result["recorded"], dict):
+        result = result["recorded"]
+
     if tool_name == "sf_get_case":
         c = result.get("case", {}) if isinstance(result, dict) else {}
         return f"{c.get('CaseNumber', '')}: {c.get('Subject', '')[:60]}"
@@ -198,7 +203,25 @@ def _preview_tool_result(tool_name: str, result: dict) -> str:
         u = result.get("updated", {}) if isinstance(result, dict) else {}
         return f"Status → {u.get('Status', '?')}"
     if tool_name == "escalate_to_queue":
-        return f"queue: {result.get('queue', '')}"
+        return f"queue: {result.get('queue', '')} · {result.get('priority', '')}"
+
+    # Specific classification/scoring tools — give a readable summary.
+    if tool_name == "classify_intent":
+        return f"intent: {result.get('intent', '?')}"
+    if tool_name == "classify_risk":
+        return f"risk: {result.get('risk', '?')}"
+    if tool_name == "check_topic_in_scope":
+        return f"in_scope: {result.get('in_scope', '?')} · topic: {result.get('topic', 'n/a')}"
+    if tool_name == "score_resolution":
+        parts = [
+            f"groundedness={result.get('groundedness', '?')}",
+            f"citation_validity={result.get('citation_validity', '?')}",
+            f"tone={result.get('tone', '?')}",
+            f"completeness={result.get('completeness', '?')}",
+            f"safety={result.get('safety', '?')}",
+        ]
+        return " · ".join(parts)
+
     if tool_name.startswith("classify_") or tool_name.startswith("score_") or tool_name.startswith("check_"):
         return json.dumps({k: v for k, v in (result or {}).items() if not isinstance(v, (list, dict))})[:120]
     if isinstance(result, dict):

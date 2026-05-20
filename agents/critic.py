@@ -75,7 +75,8 @@ class CriticAgent(SubAgent):
     def execute_tool(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "score_resolution":
             self._scored = tool_input
-            return {"recorded": True}
+            # Return the scores so the live trace shows them, instead of just "recorded".
+            return tool_input
         raise ValueError(f"Unknown tool: {tool_name}")
 
     def parse_output(self, text: str) -> dict:

@@ -378,6 +378,38 @@ function resetDiagram() {
     const out = outEl(id);
     if (out) out.textContent = "Waiting";
   }
+  // Clear all per-agent tool logs.
+  document.querySelectorAll(".agent-toollog").forEach(el => {
+    el.innerHTML = "";
+    el.classList.remove("has-rows");
+  });
+}
+
+// Map agent name (from backend events) → toollog container.
+function toollogEl(agentName) {
+  return document.querySelector(`.agent-toollog[data-toollog="${agentName}"]`);
+}
+
+function clearToollog(agentName) {
+  const el = toollogEl(agentName);
+  if (!el) return;
+  el.innerHTML = "";
+  el.classList.remove("has-rows");
+}
+
+function appendToollogRow(agentName, toolName, resultText, status, durationMs) {
+  const log = toollogEl(agentName);
+  if (!log) return;
+  const row = document.createElement("div");
+  row.className = `toollog-row ${status || "ok"}`;
+  const meta = (durationMs != null) ? `<span class="toollog-meta">${durationMs}ms</span>` : "";
+  row.innerHTML = `
+    <span class="toollog-arrow">${status === "running" ? "▶" : (status === "error" ? "✕" : "✓")}</span>
+    <code class="toollog-name">${escapeHtml(toolName)}</code>
+    <span class="toollog-result">${escapeHtml(resultText || "")}${meta}</span>
+  `;
+  log.appendChild(row);
+  log.classList.add("has-rows");
 }
 
 function setNode(id, state, info) {
@@ -458,6 +490,7 @@ async function runAgent() {
       agent_start: (d) => {
         agentCount++;
         setNode(d.node, "active", `running…`);
+        clearToollog(d.agent);
         addTrace(d.agent, "agent_start", "agent");
       },
       agent_end: (d) => {
@@ -477,6 +510,9 @@ async function runAgent() {
         toolCount++;
         const cat = d.status === "error" ? "error" : "ok";
         addTrace(`${d.agent}/${d.tool_name}`, `${d.preview || d.status} · ${d.duration_ms}ms`, cat);
+        // Also append inline to the relevant agent's tool log so the architecture
+        // diagram itself shows what each tool returned.
+        appendToollogRow(d.agent, d.tool_name, d.preview || d.status, d.status, d.duration_ms);
       },
       eval_score: (d) => {
         renderEvalCard(d);

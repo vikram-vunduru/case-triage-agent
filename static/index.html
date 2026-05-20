@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Case Triage Multi-Agent — Salesforce · Confluence · Claude</title>
-  <link rel="stylesheet" href="static/styles.css?v=replay-1" />
+  <link rel="stylesheet" href="static/styles.css?v=detail-1" />
 </head>
 <body>
   <header class="topbar">
@@ -73,11 +73,13 @@
             <span class="agent-title">Triage Agent</span>
             <span class="agent-status"></span>
           </div>
+          <div class="agent-desc">Classifies intent · risk · scope before any retrieval. 3 forced tool calls.</div>
           <div class="tool-chips">
             <span class="chip">classify_intent</span>
             <span class="chip">classify_risk</span>
             <span class="chip">check_topic_in_scope</span>
           </div>
+          <div class="agent-toollog" data-toollog="triage"></div>
           <div class="agent-out" data-out="triage">Waiting</div>
         </div>
         <div class="edge"></div>
@@ -89,12 +91,14 @@
             <span class="agent-title">Investigator Agent</span>
             <span class="agent-status"></span>
           </div>
+          <div class="agent-desc">Reads Salesforce + searches Confluence for matching KB articles.</div>
           <div class="tool-chips">
             <span class="chip sf">sf_get_case</span>
             <span class="chip sf">sf_get_account</span>
             <span class="chip sf">sf_get_related_cases</span>
             <span class="chip kb">confluence_search</span>
           </div>
+          <div class="agent-toollog" data-toollog="investigator"></div>
           <div class="agent-out" data-out="investigator">Waiting</div>
         </div>
         <div class="edge"></div>
@@ -106,10 +110,12 @@
             <span class="agent-title">Resolver Agent</span>
             <span class="agent-status"></span>
           </div>
+          <div class="agent-desc">Drafts the customer reply. Zero tools — must cite only retrieved KBs.</div>
           <div class="tool-chips">
             <span class="chip gen">pure generation</span>
             <span class="chip">structured output</span>
           </div>
+          <div class="agent-toollog" data-toollog="resolver"></div>
           <div class="agent-out" data-out="resolver">Waiting</div>
         </div>
         <div class="edge"></div>
@@ -136,9 +142,11 @@
             <span class="agent-title">Critic Agent <span class="badge-mini">LLM-as-judge</span></span>
             <span class="agent-status"></span>
           </div>
+          <div class="agent-desc">Independent fresh Claude call. Scores 5 dimensions 0–1.</div>
           <div class="tool-chips">
             <span class="chip judge">score_resolution</span>
           </div>
+          <div class="agent-toollog" data-toollog="critic"></div>
           <div class="agent-out" data-out="critic">Waiting</div>
         </div>
         <div class="edge"></div>
@@ -165,10 +173,12 @@
               <span class="agent-title">Action Agent</span>
               <span class="agent-status"></span>
             </div>
+            <div class="agent-desc">Writes back: Chatter audit + customer-facing Case comment.</div>
             <div class="tool-chips">
               <span class="chip sf">sf_post_chatter</span>
               <span class="chip sf">sf_update_case</span>
             </div>
+            <div class="agent-toollog" data-toollog="action"></div>
             <div class="agent-out" data-out="action">Waiting</div>
           </div>
 
@@ -179,10 +189,12 @@
               <span class="agent-title">Escalation Agent</span>
               <span class="agent-status"></span>
             </div>
+            <div class="agent-desc">Structured human handoff — queue, summary, evidence, next steps.</div>
             <div class="tool-chips">
               <span class="chip esc">escalate_to_queue</span>
               <span class="chip sf">sf_post_chatter</span>
             </div>
+            <div class="agent-toollog" data-toollog="escalation"></div>
             <div class="agent-out" data-out="escalation">Waiting</div>
           </div>
         </div>
@@ -255,6 +267,6 @@
     </section>
   </main>
 
-  <script src="static/app.js?v=replay-1"></script>
+  <script src="static/app.js?v=detail-1"></script>
 </body>
 </html>
