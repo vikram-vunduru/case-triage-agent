@@ -172,6 +172,8 @@ function populateCaseSelect(cases) {
 function showCasePreview() {
   const id = $("#case-select").value;
   const c = CASES.find(x => x.Id === id);
+  // Reset the architecture diagram so a previous case's green path does not leak.
+  resetDiagram();
   if (!c) { $("#case-preview").textContent = ""; $("#prior-run").hidden = true; return; }
   const note = c.golden ? `<div class="cp-note">golden: ${escapeHtml(c.golden.note)}</div>` : "";
 
@@ -251,6 +253,9 @@ async function loadPriorRun(caseId) {
       $("#cp-desc-wrap").hidden = false;
     }
 
+    // ----- replay the prior agent path on the architecture diagram (green)
+    applyPriorPathToDiagram(case_, chatter, comments);
+
     // ----- "previously processed" panel below the preview
     const wasTouched =
       (statusNow && statusNow !== "New") ||
@@ -281,6 +286,72 @@ async function loadPriorRun(caseId) {
     }
   } catch {
     // history is supplementary — silently ignore failures
+  }
+}
+
+// ---------- prior-path inference + diagram replay ----------
+function inferPriorPath(case_, chatter, comments) {
+  const hasComments = (comments || []).length > 0;
+  const hasChatter = (chatter || []).length > 0;
+  const status = (case_ || {}).Status || "New";
+
+  // Never run — nothing to replay.
+  if (!hasComments && !hasChatter && status === "New") return null;
+
+  // Action Agent is the only thing that posts customer-facing CaseComments.
+  // If we see any, the trust gate passed and the full pipeline executed.
+  if (hasComments) return "action";
+
+  // No comments but status moved off "New" with no chatter — Action probably ran
+  // but the Chatter post is older than our top-5 window. Treat as action.
+  if (!hasChatter && status !== "New") return "action";
+
+  // Chatter only → Escalation. Decide sub-path from the most recent post body.
+  // Escalation prompted by triage flags hard-routed (refund/outage/high-risk):
+  //   the Escalation Agent's note typically reads "Triage flagged: intent = …".
+  // Escalation prompted by the trust gate (low confidence / critic rejected):
+  //   the note typically references the resolver draft, critic scores, or KBs.
+  const body = ((chatter[0] || {}).Body || "").toUpperCase();
+  const mentionsTrustReasons =
+    body.includes("CRITIC") || body.includes("DRAFT") ||
+    body.includes("CONFIDENCE") || body.includes("RESOLVER");
+  if (mentionsTrustReasons) return "escalation_via_trust_gate";
+  return "escalation_via_triage";
+}
+
+const PRIOR_PATHS = {
+  action: [
+    "input_guardrails", "orchestrator", "triage", "investigator",
+    "resolver", "output_guardrails", "critic", "trust_gate",
+    "action", "output",
+  ],
+  escalation_via_triage: [
+    "input_guardrails", "orchestrator", "triage",
+    "escalation", "output",
+  ],
+  escalation_via_trust_gate: [
+    "input_guardrails", "orchestrator", "triage", "investigator",
+    "resolver", "output_guardrails", "critic", "trust_gate",
+    "escalation", "output",
+  ],
+};
+
+function applyPriorPathToDiagram(case_, chatter, comments) {
+  const path = inferPriorPath(case_, chatter, comments);
+  if (!path) return;
+  const nodes = PRIOR_PATHS[path] || [];
+  for (const id of nodes) {
+    const sub = path.startsWith("escalation") && id === "escalation"
+      ? "previous run"
+      : (id === "action" ? "previous run" : null);
+    setNode(id, "done", sub);
+  }
+  // Light up the guardrail check pills on whichever guardrail stages ran.
+  if (nodes.includes("input_guardrails")) {
+    ["pii", "injection", "scope", "abuse"].forEach(n => setCheck(n, "pass"));
+  }
+  if (nodes.includes("output_guardrails")) {
+    ["groundedness", "citations", "pii_leak", "tone"].forEach(n => setCheck(n, "pass"));
   }
 }
 
