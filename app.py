@@ -209,21 +209,22 @@ async def stream(session_id: str) -> EventSourceResponse:
     return EventSourceResponse(event_gen())
 
 
-# ---- outer app: mount api_app under ROUTE_PREFIX when deployed behind a tunnel ----
+# ---- outer app: mount api_app at BOTH the production prefix and the root
+# so the same code serves agents.vikramvunduru.com/case-triage-agent/ (via
+# Cloudflare Tunnel) AND http://127.0.0.1:8000/ (for local development).
 if ROUTE_PREFIX:
     outer = FastAPI(title="Agents Hub", lifespan=lifespan)
-    outer.mount(ROUTE_PREFIX, api_app)
 
     @outer.get(ROUTE_PREFIX)
     def _redirect_to_slash():
-        # Browser visits /case-triage-agent (no trailing slash) — redirect so
-        # relative URLs in the served HTML resolve correctly.
+        # Visitors that hit /case-triage-agent (no trailing slash) need a
+        # trailing slash so the HTML's relative asset URLs resolve correctly.
         return RedirectResponse(url=f"{ROUTE_PREFIX}/")
 
-    @outer.get("/")
-    def _root_index():
-        # Friendly landing for anyone hitting the apex of the tunnel hostname.
-        return JSONResponse({"agents": [{"path": ROUTE_PREFIX, "name": "Case Triage Multi-Agent"}]})
+    # Production: agents.vikramvunduru.com/case-triage-agent/...
+    outer.mount(ROUTE_PREFIX, api_app)
+    # Local dev: http://127.0.0.1:8000/...  (same routes, served at the root)
+    outer.mount("/", api_app)
 
     app = outer
 else:
