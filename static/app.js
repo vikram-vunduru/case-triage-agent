@@ -63,26 +63,116 @@ async function initUnlock() {
   markLocked();
 }
 
-async function onUnlockClick() {
+function onUnlockClick() {
   if (DEMO_UNLOCKED) return;
-  const pwd = window.prompt("Enter the demo password to unlock the Run pipeline.");
-  if (!pwd) return;
+  openUnlockModal();
+}
+
+function openUnlockModal() {
+  const modal = document.querySelector("#unlock-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+  // Focus the input after the rise animation settles.
+  setTimeout(() => {
+    const input = document.querySelector("#unlock-password");
+    if (input) { input.value = ""; input.focus(); }
+    hideUnlockError();
+  }, 60);
+}
+
+function closeUnlockModal() {
+  const modal = document.querySelector("#unlock-modal");
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = "";
+  hideUnlockError();
+}
+
+function showUnlockError(message) {
+  const err = document.querySelector("#unlock-error");
+  const input = document.querySelector("#unlock-password");
+  if (err) {
+    err.textContent = message || "Incorrect password — try again or reach out to Vikram for access.";
+    err.hidden = false;
+  }
+  if (input) {
+    input.classList.add("error");
+    input.focus();
+    input.select();
+  }
+}
+
+function hideUnlockError() {
+  const err = document.querySelector("#unlock-error");
+  const input = document.querySelector("#unlock-password");
+  if (err) err.hidden = true;
+  if (input) input.classList.remove("error");
+}
+
+async function submitUnlock(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  const input = document.querySelector("#unlock-password");
+  const submitBtn = document.querySelector("#unlock-submit");
+  if (!input) return;
+  const pwd = input.value.trim();
+  if (!pwd) {
+    showUnlockError("Please enter the password to continue.");
+    return;
+  }
+
+  hideUnlockError();
+  if (submitBtn) {
+    submitBtn.classList.add("loading");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Unlocking…";
+  }
+
   try {
     const res = await fetch("api/unlock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: pwd }),
     });
+    if (res.status === 401) {
+      showUnlockError("Incorrect password — try again or reach out to Vikram for access.");
+      return;
+    }
     if (!res.ok) {
-      alert("Wrong password.");
+      showUnlockError("Server error — please try again in a moment.");
       return;
     }
     const d = await res.json();
     if (d.token) localStorage.setItem(TOKEN_STORAGE_KEY, d.token);
     markUnlocked();
+    closeUnlockModal();
   } catch (err) {
-    alert("Could not reach the server. Try again.");
+    showUnlockError("Could not reach the server. Check your connection and try again.");
+  } finally {
+    if (submitBtn) {
+      submitBtn.classList.remove("loading");
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Unlock";
+    }
   }
+}
+
+function bindUnlockModal() {
+  const form = document.querySelector("#unlock-form");
+  const cancel = document.querySelector("#unlock-cancel");
+  const modal = document.querySelector("#unlock-modal");
+  if (form) form.addEventListener("submit", submitUnlock);
+  if (cancel) cancel.addEventListener("click", closeUnlockModal);
+  if (modal) {
+    // Click outside the card closes the modal.
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeUnlockModal();
+    });
+  }
+  // ESC key closes the modal.
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && !modal.hidden) closeUnlockModal();
+  });
 }
 
 function markLocked() {
@@ -128,6 +218,7 @@ function bindUI() {
   $("#run-btn").addEventListener("click", runAgent);
   $("#clear-btn").addEventListener("click", clearAll);
   $("#case-select").addEventListener("change", showCasePreview);
+  bindUnlockModal();
 }
 
 function clearAll() {

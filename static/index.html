@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Case Triage Multi-Agent — Salesforce · Confluence · Claude</title>
-  <link rel="stylesheet" href="static/styles.css?v=slack-1" />
+  <link rel="stylesheet" href="static/styles.css?v=modal-1" />
 </head>
 <body>
   <header class="topbar">
@@ -277,6 +277,47 @@
     </section>
   </main>
 
-  <script src="static/app.js?v=slack-1"></script>
+  <!-- Branded unlock modal — replaces the browser's prompt() alert -->
+  <div id="unlock-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="unlock-modal-title">
+    <div class="modal-card">
+      <div class="modal-eyebrow">
+        <span class="modal-lockicon">●</span>
+        Protected by Vikram Vunduru
+      </div>
+      <h2 id="unlock-modal-title" class="modal-title">Unlock the live demo</h2>
+      <p class="modal-sub">
+        This Case Triage Agent runs against real Salesforce, real Confluence, and real Anthropic Claude
+        resources. The architecture, case browser, and prior-run history stay fully visible to all visitors,
+        so feel free to look around. To actually <strong>run the pipeline</strong> on a case, please enter
+        the access password.
+      </p>
+      <form id="unlock-form" autocomplete="off" novalidate>
+        <label class="modal-label" for="unlock-password">Demo access password</label>
+        <input
+          id="unlock-password"
+          type="password"
+          autocomplete="current-password"
+          spellcheck="false"
+          placeholder="Enter password"
+          required
+        />
+        <div class="modal-error" id="unlock-error" hidden>
+          Incorrect password — try again or reach out to Vikram for access.
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ghost" id="unlock-cancel">Cancel</button>
+          <button type="submit" class="primary" id="unlock-submit">Unlock</button>
+        </div>
+      </form>
+      <p class="modal-footer">
+        Need access? Email
+        <a href="mailto:awsvkv@gmail.com">awsvkv@gmail.com</a>
+        or DM
+        <a href="https://www.linkedin.com/in/vikramvunduru/" target="_blank" rel="noopener">Vikram on LinkedIn</a>.
+      </p>
+    </div>
+  </div>
+
+  <script src="static/app.js?v=modal-1"></script>
 </body>
 </html>

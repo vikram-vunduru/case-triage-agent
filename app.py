@@ -207,8 +207,6 @@ async def slack_interactivity(request: Request) -> JSONResponse:
     )
 
     fut = _pending_approvals.get(approval_id)
-    if fut and not fut.done():
-        fut.set_result(decision)
 
     # Update the original Slack message so the buttons can't be re-clicked.
     container = payload.get("container") or {}
@@ -222,8 +220,43 @@ async def slack_interactivity(request: Request) -> JSONResponse:
                 break
     channel_id = container.get("channel_id") or (payload.get("channel") or {}).get("id", "")
     message_ts = container.get("message_ts") or message.get("ts", "")
-    if channel_id and message_ts:
-        asyncio.create_task(slack.update_with_decision(channel_id, message_ts, case_number, decision))
+
+    if fut and not fut.done():
+        fut.set_result(decision)
+        if channel_id and message_ts:
+            asyncio.create_task(slack.update_with_decision(channel_id, message_ts, case_number, decision))
+    else:
+        # Orphaned approval — the run that posted this message is no longer
+        # active (server restart, timeout already fired, or duplicate click).
+        # Make this visible in Slack instead of silently no-op'ing.
+        if channel_id and message_ts:
+            async def _mark_orphan():
+                import httpx as _httpx
+                async with _httpx.AsyncClient(timeout=10.0) as client:
+                    await client.post(
+                        f"{slack.SLACK_API if hasattr(slack, 'SLACK_API') else 'https://slack.com/api'}/chat.update",
+                        headers={
+                            "Authorization": f"Bearer {slack.bot_token}",
+                            "Content-Type": "application/json; charset=utf-8",
+                        },
+                        json={
+                            "channel": channel_id,
+                            "ts": message_ts,
+                            "text": "This approval is no longer active (the agent run has ended).",
+                            "blocks": [{
+                                "type": "section",
+                                "text": {
+                                    "type": "mrkdwn",
+                                    "text": (
+                                        ":information_source: *This approval is no longer active.* "
+                                        "The agent run has ended (server restart, timeout, or already decided). "
+                                        "Start a new run in the demo UI to get a fresh approval prompt."
+                                    ),
+                                },
+                            }],
+                        },
+                    )
+            asyncio.create_task(_mark_orphan())
 
     return JSONResponse({"ok": True})
 
