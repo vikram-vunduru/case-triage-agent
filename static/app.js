@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initUnlock();
   await loadCases();
   bindUI();
+  startCasesAutoPoll();
 });
 
 // ---------- unlock / password gate ----------
@@ -231,32 +232,63 @@ function clearAll() {
   $("#eval-grid").innerHTML = "";
 }
 
-async function loadCases() {
+async function loadCases({ silent = false } = {}) {
   try {
     const res = await fetch("api/cases");
     if (!res.ok) throw new Error("Failed to load cases");
     const data = await res.json();
+    const previousIds = new Set((CASES || []).map(c => c.Id));
     CASES = data.cases;
     MODE = data.mode;
-    populateCaseSelect(CASES);
-    showCasePreview();
+    populateCaseSelect(CASES, previousIds);
+    if (!silent) showCasePreview();
     const approval = MODE.require_human_approval ? " · approval=on" : "";
     const modeStr = `SF ${MODE.salesforce} · KB ${MODE.confluence} · ${MODE.model}${approval}`;
     $("#mode-text").textContent = modeStr;
     $("#mode-detail").textContent = modeStr;
   } catch (err) {
-    $("#mode-text").textContent = "offline";
-    $("#case-preview").textContent = "Could not load cases: " + err.message;
+    if (!silent) {
+      $("#mode-text").textContent = "offline";
+      $("#case-preview").textContent = "Could not load cases: " + err.message;
+    }
   }
 }
 
-function populateCaseSelect(cases) {
+// Re-poll /api/cases every 15s so tickets submitted via the support portal
+// appear in the dropdown automatically. Newly-arrived cases get a NEW badge
+// for ~60s so the demo runner can spot them at a glance.
+const NEW_BADGE_TTL_MS = 60_000;
+const _newCaseFirstSeenAt = new Map();   // case_id → epoch ms
+let _previousCaseIds = new Set();
+
+function startCasesAutoPoll() {
+  setInterval(async () => {
+    const selectEl = $("#case-select");
+    const previouslySelected = selectEl ? selectEl.value : "";
+    await loadCases({ silent: true });
+    // Preserve the user's selection across the silent re-render.
+    if (previouslySelected && selectEl) {
+      for (const opt of selectEl.options) {
+        if (opt.value === previouslySelected) { selectEl.value = previouslySelected; break; }
+      }
+    }
+  }, 15_000);
+}
+
+function populateCaseSelect(cases, previousIds = null) {
   const sel = $("#case-select");
   sel.innerHTML = "";
+  const now = Date.now();
   for (const c of cases) {
+    // Mark newly-arrived cases (since the last poll) so the dropdown can show them.
+    if (previousIds && !previousIds.has(c.Id) && !_newCaseFirstSeenAt.has(c.Id)) {
+      _newCaseFirstSeenAt.set(c.Id, now);
+    }
     const opt = document.createElement("option");
     opt.value = c.Id;
-    opt.textContent = `${c.CaseNumber} — ${c.Subject}`;
+    const seen = _newCaseFirstSeenAt.get(c.Id);
+    const isNew = seen && (now - seen) < NEW_BADGE_TTL_MS;
+    opt.textContent = `${isNew ? "🆕 " : ""}${c.CaseNumber} — ${c.Subject}`;
     sel.appendChild(opt);
   }
 }

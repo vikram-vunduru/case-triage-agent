@@ -105,6 +105,52 @@ def index() -> FileResponse:
     return FileResponse(ROOT / "static" / "index.html")
 
 
+@api_app.get("/support")
+@api_app.get("/support/")
+def portal_index() -> FileResponse:
+    """Customer-facing support portal — submit a ticket that lands in Salesforce."""
+    return FileResponse(ROOT / "static" / "support.html")
+
+
+class PortalCaseRequest(BaseModel):
+    subject: str
+    description: str
+    name: str = ""
+    email: str = ""
+    priority: str = "Medium"
+    type: str = ""
+
+
+@api_app.post("/api/portal/case")
+def portal_create_case(req: PortalCaseRequest) -> JSONResponse:
+    """Public endpoint — anyone can submit a ticket from the portal."""
+    subject = (req.subject or "").strip()
+    description = (req.description or "").strip()
+    if not subject or len(subject) < 4:
+        raise HTTPException(status_code=400, detail="subject must be at least 4 characters")
+    if not description or len(description) < 10:
+        raise HTTPException(status_code=400, detail="description must be at least 10 characters")
+    priority = req.priority if req.priority in {"Low", "Medium", "High"} else "Medium"
+    try:
+        new_case = api_app.state.sf.create_case(
+            subject=subject,
+            description=description,
+            priority=priority,
+            origin="Web",
+            supplied_name=(req.name or "").strip(),
+            supplied_email=(req.email or "").strip(),
+            type_=(req.type or "").strip() or None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Failed to create case: {exc}")
+    return JSONResponse({
+        "ok": True,
+        "case_id": new_case.get("Id"),
+        "case_number": new_case.get("CaseNumber"),
+        "status": new_case.get("Status", "New"),
+    })
+
+
 @api_app.get("/api/cases")
 def list_cases() -> JSONResponse:
     cases = api_app.state.sf.list_open_cases(limit=20)

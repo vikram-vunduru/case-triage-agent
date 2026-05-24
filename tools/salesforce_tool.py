@@ -128,6 +128,59 @@ class SalesforceTool:
         res = self._call(lambda: self._sf.query(soql))
         return [_clean_sobject(r) for r in res.get("records", [])]
 
+    def create_case(
+        self,
+        subject: str,
+        description: str,
+        priority: str = "Medium",
+        origin: str = "Web",
+        supplied_name: str = "",
+        supplied_email: str = "",
+        type_: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a new Case in Salesforce. Returns the created case with Id + CaseNumber.
+
+        Used by the customer-facing support portal at /support to land tickets
+        directly in the org without going through Email-to-Case or Web-to-Case
+        configuration. The standard `SuppliedName` / `SuppliedEmail` fields
+        record the submitter so a human can later link to a Contact.
+        """
+        fields: dict[str, Any] = {
+            "Subject": subject,
+            "Description": description,
+            "Status": "New",
+            "Priority": priority,
+            "Origin": origin,
+        }
+        if supplied_name:
+            fields["SuppliedName"] = supplied_name
+        if supplied_email:
+            fields["SuppliedEmail"] = supplied_email
+        if type_:
+            fields["Type"] = type_
+
+        if self.mode == "mock":
+            new_id = f"500{len(self._cases) + 100:013d}"
+            new_number = f"M-{1000 + len(self._cases) + 1:05d}"
+            case = {
+                "Id": new_id,
+                "CaseNumber": new_number,
+                "CreatedDate": _now(),
+                "AccountId": None,
+                "ContactId": None,
+                **fields,
+            }
+            self._cases[new_id] = case
+            return case
+
+        result = self._call(lambda: self._sf.Case.create(fields))
+        new_id = result.get("id") if isinstance(result, dict) else None
+        if not new_id:
+            raise RuntimeError(f"Salesforce Case.create returned unexpected payload: {result}")
+        # Fetch back so we have CaseNumber + CreatedDate populated.
+        created = self._call(lambda: self._sf.Case.get(new_id))
+        return _clean_sobject(created)
+
     def get_case_history(self, case_id: str) -> dict[str, Any]:
         """Return the current Case + recent Chatter posts + Case Comments so
         the UI can show 'previously processed by the agent' indicators."""

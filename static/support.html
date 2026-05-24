@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Support · Acme Cloud</title>
+  <meta name="description" content="Open a support ticket. Our AI agent will respond within minutes." />
+  <link rel="stylesheet" href="portal.css?v=portal-1" />
+</head>
+<body>
+  <header class="portal-topbar">
+    <div class="portal-topbar-inner">
+      <div class="portal-brand">
+        <div class="portal-logo">AC</div>
+        <div>
+          <div class="portal-brand-name">Acme Cloud</div>
+          <div class="portal-brand-sub">Support Portal</div>
+        </div>
+      </div>
+      <nav class="portal-nav">
+        <a href="#" class="active">Submit a ticket</a>
+        <a href="https://vikramvundurudemo.atlassian.net/wiki/spaces/SD" target="_blank" rel="noopener">Knowledge base</a>
+        <a href="#status">Service status</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="portal-main">
+    <section class="portal-hero">
+      <h1>How can we help you today?</h1>
+      <p>Open a support ticket and our team will respond within minutes. Most common issues are resolved automatically, with citations to the relevant knowledge article.</p>
+      <div class="portal-stats">
+        <div class="stat"><strong>~25s</strong><span>average response time</span></div>
+        <div class="stat"><strong>30–40%</strong><span>auto-resolved · no human needed</span></div>
+        <div class="stat"><strong>24/7</strong><span>always available</span></div>
+      </div>
+    </section>
+
+    <section class="portal-card" id="form-card">
+      <h2>Submit a ticket</h2>
+      <form id="ticket-form" novalidate>
+        <div class="field-row">
+          <div class="field">
+            <label for="name">Your name</label>
+            <input id="name" name="name" type="text" placeholder="Jane Doe" autocomplete="name" />
+          </div>
+          <div class="field">
+            <label for="email">Your email</label>
+            <input id="email" name="email" type="email" placeholder="jane@company.com" autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="subject">Subject <span class="required">*</span></label>
+          <input id="subject" name="subject" type="text" required minlength="4" placeholder="Short summary — e.g. Cannot log in after password reset" />
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="type">Category</label>
+            <select id="type" name="type">
+              <option value="">— Select a category —</option>
+              <option value="Authentication">Authentication / Login</option>
+              <option value="Billing">Billing or refund</option>
+              <option value="Feature Request">Feature request</option>
+              <option value="Bug">Bug / outage</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority">
+              <option value="Low">Low — not blocking</option>
+              <option value="Medium" selected>Medium — affecting my work</option>
+              <option value="High">High — completely blocked</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="description">Describe the issue <span class="required">*</span></label>
+          <textarea id="description" name="description" required minlength="10" rows="6"
+            placeholder="Tell us what happened, what you expected, and any steps you've already tried. The more detail you share, the faster we can help."></textarea>
+          <div class="field-hint">Tip: include error messages, screenshots references, browser/OS, and the affected account or environment.</div>
+        </div>
+
+        <div id="form-error" class="form-error" hidden></div>
+
+        <div class="form-actions">
+          <button type="submit" id="submit-btn" class="btn-primary">Submit ticket</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="portal-card portal-success" id="success-card" hidden>
+      <div class="success-check">✓</div>
+      <h2>Ticket received</h2>
+      <p class="success-sub">Thank you — we've created your support case in our system. Our AI agent has been notified and will respond shortly.</p>
+      <div class="success-ref">
+        <div class="success-ref-label">Your reference</div>
+        <div class="success-ref-id" id="success-case-number">—</div>
+        <div class="success-ref-meta" id="success-case-meta"></div>
+      </div>
+      <div class="success-actions">
+        <button type="button" class="btn-ghost" id="submit-another">Submit another ticket</button>
+        <a href="case-triage-agent/" class="btn-primary" target="_blank" rel="noopener">Watch the agent process it →</a>
+      </div>
+      <p class="success-foot">Keep this reference handy — you can quote it to our team for faster follow-up.</p>
+    </section>
+  </main>
+
+  <footer class="portal-foot">
+    <div class="portal-foot-inner">
+      <div class="portal-foot-col">
+        <div class="portal-foot-title">Acme Cloud Support</div>
+        <p>Open a ticket above, or browse our knowledge base for self-serve answers.</p>
+      </div>
+      <div class="portal-foot-col">
+        <div class="portal-foot-title">Powered by</div>
+        <p>Case Triage Agent — a multi-agent system that triages Service Cloud cases. <a href="https://github.com/vikram-vunduru/case-triage-agent" target="_blank" rel="noopener">View on GitHub</a></p>
+      </div>
+      <div class="portal-foot-col">
+        <div class="portal-foot-title">Contact</div>
+        <p><a href="mailto:hi@vikramvunduru.com">hi@vikramvunduru.com</a><br>
+        <a href="https://www.linkedin.com/in/vikramvunduru/" target="_blank" rel="noopener">LinkedIn</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="portal.js?v=portal-1"></script>
+</body>
+</html>
