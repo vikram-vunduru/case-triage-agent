@@ -25,6 +25,7 @@ class ConfluenceTool:
 
     def _sync_from_confluence(self) -> None:
         """Pull pages from Confluence and re-index. Idempotent."""
+        import re
         from atlassian import Confluence
         from rag.chroma_store import index_documents
 
@@ -40,9 +41,17 @@ class ConfluenceTool:
             limit=200,
             expand="body.storage",
         )
+
+        def _article_id(title: str, page_id: str) -> str:
+            """Use the 'KB-###' prefix from the page title as the citable id
+            (so the agent cites 'KB-247', not the opaque Confluence numeric id).
+            Falls back to 'CF-<page_id>' for pages that don't follow the convention."""
+            m = re.match(r"^\s*(KB-\d+)\b", title or "")
+            return m.group(1) if m else f"CF-{page_id}"
+
         docs = [
             {
-                "id": str(page["id"]),
+                "id": _article_id(page.get("title", ""), str(page["id"])),
                 "title": page.get("title", ""),
                 "text": _strip_html(page.get("body", {}).get("storage", {}).get("value", "")),
                 "source": "confluence",
