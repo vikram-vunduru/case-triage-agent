@@ -12,7 +12,19 @@ URGENCIES = ["low", "medium", "high"]
 
 CLASSIFY_INTENT = {
     "name": "classify_intent",
-    "description": "Classify the user's intent. Choose ONE from: " + ", ".join(INTENTS),
+    "description": (
+        "Classify the user's intent. Choose ONE from: " + ", ".join(INTENTS) + ".\n\n"
+        "Guidance per intent:\n"
+        "- auth_issue: login, password reset, MFA, SSO, account lockout, session/cookie problems.\n"
+        "- billing_or_refund: ONLY when money movement is requested or disputed — refunds, credits, "
+        "billing disputes, charge inquiries, invoice questions.\n"
+        "- feature_request: explicit asks like 'I wish you supported X' or 'when will you add Y'.\n"
+        "- outage_report: CONFIRMED widespread service unavailability impacting multiple users. "
+        "A single user reporting a bug or a slow page is NOT an outage_report — that is 'other' or 'data_question'.\n"
+        "- data_question: how data behaves — exports, queries, reports, filters, calculations, missing records.\n"
+        "- other: anything else, including general how-to questions, single-user technical bugs, "
+        "performance complaints, notifications not arriving."
+    ),
     "input_schema": {
         "type": "object",
         "properties": {
@@ -26,10 +38,22 @@ CLASSIFY_INTENT = {
 CLASSIFY_RISK = {
     "name": "classify_risk",
     "description": (
-        "Classify the operational risk of acting autonomously on this case. "
-        "High = irreversible actions, money movement, account changes, security incidents. "
-        "Medium = customer-visible writes, configuration changes. "
-        "Low = informational answers, KB pointers."
+        "Classify the OPERATIONAL RISK of letting an AI agent act autonomously on this case. "
+        "Risk is ONLY about whether the agent's action would be hard to reverse. "
+        "It is INDEPENDENT of how urgent the customer says it is or how upset they sound.\n\n"
+        "HIGH (must escalate to human): "
+        "money movement (refunds, credits, charges); permanent data deletion "
+        "(GDPR right-to-erasure, account removal); irreversible record restoration; "
+        "account ownership transfers; permission or role grants; any production-system change; "
+        "security incidents (suspected breach, account takeover, SIM-swap).\n\n"
+        "MEDIUM: customer-visible writes that are reversible — a Chatter post, a Case comment, "
+        "a Case status change. Minor configuration changes.\n\n"
+        "LOW (safe for the agent to handle autonomously): informational answers, KB pointers, "
+        "self-service troubleshooting steps the user runs themselves, feature explanations, "
+        "performance complaints, UI bugs, display issues, CSV/data export problems, notification setup, "
+        "browser cache issues, authentication troubleshooting (password reset, MFA, lockout). "
+        "Customer urgency does NOT raise risk: a 'tomorrow morning' CSV bug is still LOW — "
+        "the worst the agent can do is tell them to clear cache."
     ),
     "input_schema": {
         "type": "object",
@@ -71,9 +95,23 @@ class TriageAgent(SubAgent):
         "Call each of classify_intent, classify_risk, and check_topic_in_scope EXACTLY ONCE. "
         "Then respond with a single final message in this format wrapped in <result></result>:\n"
         '<result>{"intent": "...", "risk": "...", "in_scope": true|false, '
-        '"urgency": "low|medium|high", "rationale": "one-sentence summary"}</result>\n'
-        "Guidelines: a Sev-1 outage or VIP account → urgency=high. Refunds and account changes → risk=high. "
-        "Login/MFA/SSO troubleshooting → risk=low. Out-of-scope topics (weather, news, jokes) → in_scope=false."
+        '"urgency": "low|medium|high", "rationale": "one-sentence summary"}</result>\n\n'
+        "IMPORTANT — read these definitions carefully, they are easy to confuse:\n"
+        "- urgency is how time-sensitive the CUSTOMER says it is (deadlines, business impact).\n"
+        "- risk is how DANGEROUS it would be for the AI to act autonomously on this case.\n"
+        "- These two are INDEPENDENT. They must be judged separately:\n"
+        "    • A 'we need this by tomorrow' CSV bug = urgency HIGH, risk LOW (the agent can safely tell the user to clear cache).\n"
+        "    • A 'whenever you can get to it' refund request = urgency LOW, risk HIGH (no AI should refund money without human review).\n\n"
+        "Concrete examples of correct classification:\n"
+        "  'Dashboard loads slowly'           → intent=other,            risk=low,    urgency=low/medium\n"
+        "  'CSV export returns empty file'     → intent=data_question,    risk=low,    urgency=medium\n"
+        "  'Not getting email notifications'   → intent=other,            risk=low,    urgency=low\n"
+        "  'Cannot log in after password reset' → intent=auth_issue,      risk=low,    urgency=high (if they say blocked)\n"
+        "  'Refund our annual subscription'    → intent=billing_or_refund, risk=high,  urgency=high\n"
+        "  'GDPR delete my account'            → intent=other,            risk=high,   urgency=medium\n"
+        "  'Restore deleted records'           → intent=other,            risk=high,   urgency=high\n"
+        "  'All our users cannot log in'       → intent=outage_report,    risk=high,   urgency=high\n\n"
+        "Out-of-scope topics (weather, news, jokes, recipes) → in_scope=false."
     )
 
     def __init__(self, client) -> None:
