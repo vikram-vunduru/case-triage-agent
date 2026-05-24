@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Case Triage Multi-Agent — Salesforce · Confluence · Claude</title>
-  <link rel="stylesheet" href="static/styles.css?v=detail-1" />
+  <link rel="stylesheet" href="static/styles.css?v=slack-1" />
 </head>
 <body>
   <header class="topbar">
@@ -81,6 +81,16 @@
           </div>
           <div class="agent-toollog" data-toollog="triage"></div>
           <div class="agent-out" data-out="triage">Waiting</div>
+        </div>
+        <div class="edge"></div>
+
+        <!-- SLACK APPROVAL (only fires for sensitive cases when Slack is configured) -->
+        <div class="stage stage-trust lg-trust" data-node="approval">
+          <div class="stage-head">
+            <span class="stage-title">Slack approval <span class="badge-mini">human-in-the-loop</span></span>
+            <span class="stage-status"></span>
+          </div>
+          <div class="stage-sub" data-sub="approval">Only fires on sensitive cases · waits up to 10 min for Approve/Reject</div>
         </div>
         <div class="edge"></div>
 
@@ -267,6 +277,6 @@
     </section>
   </main>
 
-  <script src="static/app.js?v=detail-1"></script>
+  <script src="static/app.js?v=slack-1"></script>
 </body>
 </html>

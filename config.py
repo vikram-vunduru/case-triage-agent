@@ -33,5 +33,14 @@ class Settings(BaseSettings):
     demo_password: str = ""
     demo_token_ttl_hours: int = 24
 
+    # Slack approval gate for sensitive cases (refund / outage / high-risk).
+    # If all three are set, the orchestrator pauses on sensitive cases and posts
+    # an Approve/Reject message to the configured channel before deciding.
+    # Leave any of them empty to disable the gate (falls back to direct escalation).
+    slack_bot_token: str = ""
+    slack_signing_secret: str = ""
+    slack_approval_channel_id: str = ""
+    slack_approval_timeout_seconds: int = 600  # 10 min
+
 
 settings = Settings()

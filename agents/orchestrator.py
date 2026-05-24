@@ -7,7 +7,9 @@ escalation) and applies guardrails + a trust gate between stages.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import secrets
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -37,6 +39,7 @@ from guardrails.output_guardrails import run_output_guardrails
 from guardrails.policy import trust_gate
 from tools.confluence_tool import ConfluenceTool
 from tools.salesforce_tool import SalesforceTool
+from tools.slack_tool import ApprovalDecision, SlackTool
 
 
 @dataclass
@@ -68,10 +71,14 @@ class Orchestrator:
         anthropic_client: Anthropic,
         sf: SalesforceTool,
         kb: ConfluenceTool,
+        slack: SlackTool | None = None,
+        pending_approvals: dict | None = None,
     ) -> None:
         self.client = anthropic_client
         self.sf = sf
         self.kb = kb
+        self.slack = slack
+        self.pending_approvals = pending_approvals if pending_approvals is not None else {}
 
         self.triage_agent = TriageAgent(self.client)
         self.investigator_agent = InvestigatorAgent(self.client, sf, kb)
@@ -154,8 +161,32 @@ class Orchestrator:
         risk = (state.triage.get("risk") or "").lower()
         in_scope = bool(state.triage.get("in_scope", True))
 
-        # Hard route: out-of-scope or high-risk intents skip straight to escalation.
-        if not in_scope or risk == "high" or intent in {"billing_or_refund", "outage_report"}:
+        # Hard route: out-of-scope or high-risk intents need a human decision.
+        sensitive = (not in_scope) or risk == "high" or intent in {"billing_or_refund", "outage_report"}
+        if sensitive:
+            # If Slack is configured, pause for a human approval. Otherwise fall
+            # back to the original behavior — immediate escalation.
+            if self.slack and self.slack.enabled:
+                decision = await self._request_slack_approval(state, emit)
+                if decision.status == "approved":
+                    await self._execute_pre_approved_action(state, emit, decision)
+                    return await self._finish(state, emit, t0)
+                # Rejected or timeout → escalate with the human's reason.
+                rejection_label = decision.user_name or decision.user_id or "human reviewer"
+                rejection_reason = (
+                    f"Rejected via Slack by {rejection_label}"
+                    if decision.status == "rejected"
+                    else f"Slack approval timed out after {settings.slack_approval_timeout_seconds}s"
+                )
+                await self._escalate(
+                    state=state,
+                    emit=emit,
+                    reason=rejection_reason,
+                    summary=raw_text[:280],
+                )
+                return await self._finish(state, emit, t0)
+
+            # No Slack configured → straight to escalation as before.
             await self._escalate(
                 state=state,
                 emit=emit,
@@ -298,6 +329,128 @@ class Orchestrator:
         return await self._finish(state, emit, t0)
 
     # ---------- helpers ----------
+
+    async def _request_slack_approval(
+        self,
+        state: PipelineState,
+        emit: EventEmitter,
+    ) -> ApprovalDecision:
+        """Post an Approve/Reject message to Slack and await the user's click."""
+        approval_id = secrets.token_urlsafe(16)
+        case = state.case or self.sf.get_case(state.case_id)
+
+        await emit("stage_enter", {"node": "approval", "label": "Slack approval"})
+
+        try:
+            slack_resp = await self.slack.post_approval(approval_id, case, state.triage or {})
+        except Exception as exc:  # noqa: BLE001
+            await emit(
+                "stage_exit",
+                {"node": "approval", "status": "error", "summary": f"Slack post failed: {exc}"},
+            )
+            return ApprovalDecision(status="rejected", reason=f"slack_post_error: {exc}")
+
+        channel = slack_resp.get("channel", "")
+        message_ts = slack_resp.get("ts", "")
+        await emit(
+            "approval_pending",
+            {"approval_id": approval_id, "channel": channel, "message_ts": message_ts},
+        )
+
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
+        self.pending_approvals[approval_id] = future
+
+        try:
+            decision = await asyncio.wait_for(
+                future, timeout=settings.slack_approval_timeout_seconds
+            )
+        except asyncio.TimeoutError:
+            decision = ApprovalDecision(status="timeout")
+            # Best-effort: update the Slack message so people can see it expired.
+            if channel and message_ts:
+                try:
+                    await self.slack.update_with_decision(
+                        channel, message_ts, case.get("CaseNumber", "?"), decision
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            self.pending_approvals.pop(approval_id, None)
+
+        status_class = "ok" if decision.status == "approved" else "warn"
+        await emit(
+            "approval_resolved",
+            {
+                "approval_id": approval_id,
+                "status": decision.status,
+                "user_name": decision.user_name,
+                "user_id": decision.user_id,
+            },
+        )
+        await emit(
+            "stage_exit",
+            {
+                "node": "approval",
+                "status": status_class,
+                "summary": (
+                    f"Approved by @{decision.user_name}"
+                    if decision.status == "approved"
+                    else (f"Rejected by @{decision.user_name}" if decision.status == "rejected" else "Timed out")
+                ),
+            },
+        )
+        return decision
+
+    async def _execute_pre_approved_action(
+        self,
+        state: PipelineState,
+        emit: EventEmitter,
+        decision: ApprovalDecision,
+    ) -> None:
+        """Run the Action Agent with a 'pre-approved by Slack' context. Skips the
+        rest of the pipeline (Investigator / Resolver / Critic / trust gate)
+        because the human has already authorized acting on this sensitive case."""
+        approver = f"@{decision.user_name}" if decision.user_name else (decision.user_id or "human reviewer")
+        case = state.case or self.sf.get_case(state.case_id)
+        case_number = case.get("CaseNumber", state.case_id)
+        intent = (state.triage or {}).get("intent", "(unknown)")
+
+        action_msg = json.dumps(
+            {
+                "case_id": state.case_id,
+                "case_number": case_number,
+                "triage": state.triage,
+                "pre_approval": {
+                    "channel": "Slack",
+                    "approver": approver,
+                    "intent": intent,
+                },
+                "approved_reply": (
+                    f"Hello — your request has been reviewed and approved by our team. "
+                    f"A specialist will follow up shortly with the next steps. "
+                    f"Reference: Case {case_number}. Thank you for your patience."
+                ),
+            },
+            default=str,
+        )
+        act_res = await self.action_agent.run(
+            f"This case was pre-approved by {approver} via Slack at {time.strftime('%H:%M:%S')}. "
+            f"Acknowledge the customer's request, set expectations, and update the Case. "
+            f"In the internal Chatter audit, note that approval came from {approver} via Slack.\n\n"
+            f"{action_msg}",
+            emit,
+        )
+        state.input_tokens += act_res.input_tokens
+        state.output_tokens += act_res.output_tokens
+        state.tool_calls.extend(act_res.tool_calls)
+        state.actions_taken = act_res.output.get("actions_taken") or [
+            c["tool"] for c in act_res.tool_calls if c["agent"] == "action"
+        ]
+        state.final_resolution = (
+            f"Pre-approved by {approver} via Slack — acknowledgment sent. "
+            f"Specialist follow-up scheduled."
+        )
+        state.escalated = False
 
     async def _escalate(self, state: PipelineState, emit: EventEmitter, reason: str, summary: str) -> None:
         state.escalated = True

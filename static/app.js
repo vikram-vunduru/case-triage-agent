@@ -1,8 +1,9 @@
 const $ = (sel) => document.querySelector(sel);
 
 const NODE_IDS = [
-  "input_guardrails", "orchestrator", "triage", "investigator", "resolver",
-  "output_guardrails", "critic", "trust_gate", "action", "escalation", "output",
+  "input_guardrails", "orchestrator", "triage", "approval",
+  "investigator", "resolver", "output_guardrails", "critic", "trust_gate",
+  "action", "escalation", "output",
 ];
 
 const nodeEl = (id) => document.querySelector(`[data-node="${id}"]`);
@@ -513,6 +514,28 @@ async function runAgent() {
         // Also append inline to the relevant agent's tool log so the architecture
         // diagram itself shows what each tool returned.
         appendToollogRow(d.agent, d.tool_name, d.preview || d.status, d.status, d.duration_ms);
+      },
+      approval_pending: (d) => {
+        // The orchestrator just posted to Slack and is awaiting a human click.
+        const el = nodeEl("approval");
+        if (el) {
+          el.classList.remove("done", "warn", "error");
+          el.classList.add("active", "pending-approval");
+        }
+        setNode("approval", "active", "Awaiting Slack approval…");
+        addTrace("slack", `Approval posted · awaiting human decision`, "gate");
+      },
+      approval_resolved: (d) => {
+        const el = nodeEl("approval");
+        if (el) el.classList.remove("pending-approval");
+        const state = d.status === "approved" ? "done"
+                   : d.status === "rejected" ? "warn"
+                   : "warn";  // timeout
+        const label = d.status === "approved" ? `Approved by @${d.user_name}`
+                   : d.status === "rejected" ? `Rejected by @${d.user_name}`
+                   : "Timed out";
+        setNode("approval", state, label);
+        addTrace("slack", `${label}`, d.status === "approved" ? "ok" : "guard");
       },
       eval_score: (d) => {
         renderEvalCard(d);

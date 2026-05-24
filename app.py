@@ -20,6 +20,7 @@ from config import settings
 from evals.golden import for_case
 from tools.confluence_tool import ConfluenceTool
 from tools.salesforce_tool import SalesforceTool
+from tools.slack_tool import ApprovalDecision, SlackTool
 
 
 ROOT = Path(__file__).resolve().parent
@@ -32,6 +33,11 @@ _sessions: dict[str, dict] = {}
 # In-memory unlock-token store. {token: expiry_unix_ts}. Lives until process restart;
 # unlocked browsers will re-prompt after a redeploy, which is acceptable for a demo.
 _demo_tokens: dict[str, float] = {}
+
+# Pending Slack approvals — orchestrator stores a Future here keyed by
+# approval_id, then `await`s it. The /api/slack/interactivity callback
+# resolves it when Slack POSTs the user's button click.
+_pending_approvals: dict[str, asyncio.Future] = {}
 
 
 def _password_required() -> bool:
@@ -72,9 +78,17 @@ async def lifespan(_app: FastAPI):
     # uvicorn is booting the inner app directly or the outer wrapper.
     api_app.state.sf = SalesforceTool()
     api_app.state.kb = ConfluenceTool()
+    api_app.state.slack = SlackTool()
+    api_app.state.pending_approvals = _pending_approvals
     api_app.state.client = Anthropic(api_key=settings.anthropic_api_key) if settings.anthropic_api_key else None
     api_app.state.orchestrator = (
-        Orchestrator(api_app.state.client, api_app.state.sf, api_app.state.kb)
+        Orchestrator(
+            api_app.state.client,
+            api_app.state.sf,
+            api_app.state.kb,
+            slack=api_app.state.slack,
+            pending_approvals=api_app.state.pending_approvals,
+        )
         if api_app.state.client else None
     )
     yield
@@ -149,6 +163,69 @@ def unlock(req: UnlockRequest) -> JSONResponse:
     token = secrets.token_urlsafe(32)
     _demo_tokens[token] = time.time() + settings.demo_token_ttl_hours * 3600
     return JSONResponse({"unlocked": True, "token": token, "ttl_hours": settings.demo_token_ttl_hours})
+
+
+@api_app.post("/api/slack/interactivity")
+async def slack_interactivity(request: Request) -> JSONResponse:
+    """Slack POSTs here when a user clicks Approve or Reject. Must respond
+    within 3 s with HTTP 200 or Slack shows the user an error."""
+    raw_body = await request.body()
+    timestamp = request.headers.get("x-slack-request-timestamp") or request.headers.get("X-Slack-Request-Timestamp", "")
+    signature = request.headers.get("x-slack-signature") or request.headers.get("X-Slack-Signature", "")
+
+    slack: SlackTool = api_app.state.slack
+    if not slack.verify_signature(timestamp, signature, raw_body):
+        raise HTTPException(status_code=401, detail="invalid slack signature")
+
+    # Slack sends application/x-www-form-urlencoded with a `payload` field.
+    form = await request.form()
+    payload_str = form.get("payload", "")
+    payload = SlackTool.parse_interaction(str(payload_str) if payload_str else "")
+    if not payload:
+        return JSONResponse({"ok": True})
+
+    actions = payload.get("actions") or []
+    if not actions:
+        return JSONResponse({"ok": True})
+
+    action = actions[0]
+    try:
+        action_value = json.loads(action.get("value") or "{}")
+    except json.JSONDecodeError:
+        return JSONResponse({"ok": True})
+
+    approval_id = action_value.get("approval_id")
+    decision_str = action_value.get("decision")
+    if not approval_id or decision_str not in {"approved", "rejected"}:
+        return JSONResponse({"ok": True})
+
+    user = payload.get("user") or {}
+    decision = ApprovalDecision(
+        status=decision_str,
+        user_id=user.get("id", ""),
+        user_name=user.get("username") or user.get("name") or "",
+    )
+
+    fut = _pending_approvals.get(approval_id)
+    if fut and not fut.done():
+        fut.set_result(decision)
+
+    # Update the original Slack message so the buttons can't be re-clicked.
+    container = payload.get("container") or {}
+    message = payload.get("message") or {}
+    case_number = ""
+    for block in (message.get("blocks") or []):
+        if block.get("type") == "header":
+            header_text = (block.get("text") or {}).get("text", "")
+            if "Case" in header_text:
+                case_number = header_text.split("Case", 1)[-1].strip().split()[0]
+                break
+    channel_id = container.get("channel_id") or (payload.get("channel") or {}).get("id", "")
+    message_ts = container.get("message_ts") or message.get("ts", "")
+    if channel_id and message_ts:
+        asyncio.create_task(slack.update_with_decision(channel_id, message_ts, case_number, decision))
+
+    return JSONResponse({"ok": True})
 
 
 @api_app.get("/api/unlock-verify")
