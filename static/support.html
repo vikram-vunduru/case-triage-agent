@@ -4,129 +4,173 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Support · Acme Cloud</title>
-  <meta name="description" content="Open a support ticket. Our AI agent will respond within minutes." />
-  <link rel="stylesheet" href="portal.css?v=portal-1" />
+  <meta name="description" content="Open a support ticket. Our AI agent typically responds within 25 seconds." />
+  <link rel="stylesheet" href="portal.css?v=portal-2" />
 </head>
 <body>
-  <header class="portal-topbar">
-    <div class="portal-topbar-inner">
-      <div class="portal-brand">
-        <div class="portal-logo">AC</div>
-        <div>
-          <div class="portal-brand-name">Acme Cloud</div>
-          <div class="portal-brand-sub">Support Portal</div>
+  <header class="ptl-topbar">
+    <div class="ptl-topbar-inner">
+      <a href="/case-triage-agent/support" class="ptl-brand">
+        <div class="ptl-logo">A</div>
+        <div class="ptl-brand-text">
+          <div class="ptl-brand-name">Acme Cloud</div>
+          <div class="ptl-brand-sub">Support</div>
         </div>
-      </div>
-      <nav class="portal-nav">
-        <a href="#" class="active">Submit a ticket</a>
+      </a>
+      <nav class="ptl-nav">
         <a href="https://vikramvundurudemo.atlassian.net/wiki/spaces/SD" target="_blank" rel="noopener">Knowledge base</a>
-        <a href="#status">Service status</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="/case-triage-agent/" class="ptl-nav-cta">Live agent demo →</a>
       </nav>
     </div>
   </header>
 
-  <main class="portal-main">
-    <section class="portal-hero">
-      <h1>How can we help you today?</h1>
-      <p>Open a support ticket and our team will respond within minutes. Most common issues are resolved automatically, with citations to the relevant knowledge article.</p>
-      <div class="portal-stats">
-        <div class="stat"><strong>~25s</strong><span>average response time</span></div>
-        <div class="stat"><strong>30–40%</strong><span>auto-resolved · no human needed</span></div>
-        <div class="stat"><strong>24/7</strong><span>always available</span></div>
+  <main>
+    <!-- Hero -->
+    <section class="ptl-hero">
+      <div class="ptl-status">
+        <span class="ptl-status-dot"></span>
+        Agent online · responding in ~25 seconds · 24/7
+      </div>
+      <h1>Get answers in seconds, not days.</h1>
+      <p class="ptl-lede">
+        Open a support ticket. Our AI agent reads your issue, finds the right knowledge article,
+        and replies with a grounded answer — usually before a human would even see the ticket.
+        Anything risky is escalated to a human with full context.
+      </p>
+    </section>
+
+    <!-- How it works -->
+    <section class="ptl-how" id="how-it-works">
+      <div class="ptl-how-steps">
+        <div class="ptl-step">
+          <div class="ptl-step-num">1</div>
+          <div class="ptl-step-title">Submit a ticket</div>
+          <div class="ptl-step-sub">Tell us what's happening — name, email, the issue, and any context.</div>
+        </div>
+        <div class="ptl-step-arrow">→</div>
+        <div class="ptl-step">
+          <div class="ptl-step-num">2</div>
+          <div class="ptl-step-title">Multi-agent triage</div>
+          <div class="ptl-step-sub">Six specialized AI agents classify, retrieve, draft, review, and respond.</div>
+        </div>
+        <div class="ptl-step-arrow">→</div>
+        <div class="ptl-step">
+          <div class="ptl-step-num">3</div>
+          <div class="ptl-step-title">You get a reply</div>
+          <div class="ptl-step-sub">A grounded answer with citations — or a clean handoff to a human if needed.</div>
+        </div>
       </div>
     </section>
 
-    <section class="portal-card" id="form-card">
-      <h2>Submit a ticket</h2>
+    <!-- Form -->
+    <section class="ptl-card" id="form-card">
+      <div class="ptl-card-head">
+        <h2>Submit a ticket</h2>
+        <span class="ptl-card-meta">Average response: <strong>~25s</strong></span>
+      </div>
+
       <form id="ticket-form" novalidate>
-        <div class="field-row">
-          <div class="field">
+        <div class="ptl-row">
+          <div class="ptl-field">
             <label for="name">Your name</label>
             <input id="name" name="name" type="text" placeholder="Jane Doe" autocomplete="name" />
           </div>
-          <div class="field">
+          <div class="ptl-field">
             <label for="email">Your email</label>
             <input id="email" name="email" type="email" placeholder="jane@company.com" autocomplete="email" />
           </div>
         </div>
 
-        <div class="field">
-          <label for="subject">Subject <span class="required">*</span></label>
-          <input id="subject" name="subject" type="text" required minlength="4" placeholder="Short summary — e.g. Cannot log in after password reset" />
+        <div class="ptl-field">
+          <label for="subject">Subject <span class="ptl-req">required</span></label>
+          <input id="subject" name="subject" type="text" required minlength="4"
+            placeholder="Short summary — e.g. Cannot log in after password reset" />
         </div>
 
-        <div class="field-row">
-          <div class="field">
-            <label for="type">Category</label>
-            <select id="type" name="type">
-              <option value="">— Select a category —</option>
-              <option value="Authentication">Authentication / Login</option>
-              <option value="Billing">Billing or refund</option>
-              <option value="Feature Request">Feature request</option>
-              <option value="Bug">Bug / outage</option>
-              <option value="Other">Other</option>
-            </select>
+        <div class="ptl-field">
+          <label>What kind of issue?</label>
+          <div class="ptl-pillgroup" id="type-group" data-default="">
+            <button type="button" class="ptl-pill" data-value="Authentication">Authentication</button>
+            <button type="button" class="ptl-pill" data-value="Billing">Billing &amp; refund</button>
+            <button type="button" class="ptl-pill" data-value="Feature Request">Feature request</button>
+            <button type="button" class="ptl-pill" data-value="Bug">Bug / outage</button>
+            <button type="button" class="ptl-pill" data-value="Other">Other</button>
           </div>
-          <div class="field">
-            <label for="priority">Priority</label>
-            <select id="priority" name="priority">
-              <option value="Low">Low — not blocking</option>
-              <option value="Medium" selected>Medium — affecting my work</option>
-              <option value="High">High — completely blocked</option>
-            </select>
-          </div>
+          <input id="type" name="type" type="hidden" value="" />
         </div>
 
-        <div class="field">
-          <label for="description">Describe the issue <span class="required">*</span></label>
+        <div class="ptl-field">
+          <label>Priority</label>
+          <div class="ptl-pillgroup ptl-pillgroup-priority" id="priority-group" data-default="Medium">
+            <button type="button" class="ptl-pill" data-value="Low">Low</button>
+            <button type="button" class="ptl-pill is-active" data-value="Medium">Medium</button>
+            <button type="button" class="ptl-pill" data-value="High">High</button>
+          </div>
+          <input id="priority" name="priority" type="hidden" value="Medium" />
+        </div>
+
+        <div class="ptl-field">
+          <label for="description">Describe the issue <span class="ptl-req">required</span></label>
           <textarea id="description" name="description" required minlength="10" rows="6"
-            placeholder="Tell us what happened, what you expected, and any steps you've already tried. The more detail you share, the faster we can help."></textarea>
-          <div class="field-hint">Tip: include error messages, screenshots references, browser/OS, and the affected account or environment.</div>
+            placeholder="Tell us what happened, what you expected, and any steps you've already tried."></textarea>
+          <div class="ptl-hint">Tip: include error messages, the browser/OS, and the affected account or environment. More detail = faster resolution.</div>
         </div>
 
-        <div id="form-error" class="form-error" hidden></div>
+        <div id="form-error" class="ptl-error" hidden></div>
 
-        <div class="form-actions">
-          <button type="submit" id="submit-btn" class="btn-primary">Submit ticket</button>
+        <div class="ptl-actions">
+          <button type="submit" id="submit-btn" class="ptl-btn ptl-btn-primary">Submit ticket</button>
         </div>
       </form>
     </section>
 
-    <section class="portal-card portal-success" id="success-card" hidden>
-      <div class="success-check">✓</div>
+    <!-- Success state (hidden until submit) -->
+    <section class="ptl-card ptl-success" id="success-card" hidden>
+      <div class="ptl-success-check">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <h2>Ticket received</h2>
-      <p class="success-sub">Thank you — we've created your support case in our system. Our AI agent has been notified and will respond shortly.</p>
-      <div class="success-ref">
-        <div class="success-ref-label">Your reference</div>
-        <div class="success-ref-id" id="success-case-number">—</div>
-        <div class="success-ref-meta" id="success-case-meta"></div>
+      <p class="ptl-success-sub">Thank you — your case is now in our system. Our AI agent picks up new tickets within seconds.</p>
+
+      <div class="ptl-ref">
+        <div class="ptl-ref-label">Your reference number</div>
+        <div class="ptl-ref-id" id="success-case-number">—</div>
+        <div class="ptl-ref-meta" id="success-case-meta"></div>
       </div>
-      <div class="success-actions">
-        <button type="button" class="btn-ghost" id="submit-another">Submit another ticket</button>
-        <a href="case-triage-agent/" class="btn-primary" target="_blank" rel="noopener">Watch the agent process it →</a>
+
+      <div class="ptl-success-actions">
+        <button type="button" class="ptl-btn ptl-btn-ghost" id="submit-another">Submit another ticket</button>
+        <a href="/case-triage-agent/" class="ptl-btn ptl-btn-primary" target="_blank" rel="noopener">
+          Watch the agent process it
+        </a>
       </div>
-      <p class="success-foot">Keep this reference handy — you can quote it to our team for faster follow-up.</p>
+      <p class="ptl-success-foot">Keep this reference handy — you can quote it to our team for faster follow-up.</p>
     </section>
   </main>
 
-  <footer class="portal-foot">
-    <div class="portal-foot-inner">
-      <div class="portal-foot-col">
-        <div class="portal-foot-title">Acme Cloud Support</div>
+  <footer class="ptl-foot">
+    <div class="ptl-foot-inner">
+      <div class="ptl-foot-col">
+        <div class="ptl-foot-title">Acme Cloud Support</div>
         <p>Open a ticket above, or browse our knowledge base for self-serve answers.</p>
       </div>
-      <div class="portal-foot-col">
-        <div class="portal-foot-title">Powered by</div>
-        <p>Case Triage Agent — a multi-agent system that triages Service Cloud cases. <a href="https://github.com/vikram-vunduru/case-triage-agent" target="_blank" rel="noopener">View on GitHub</a></p>
+      <div class="ptl-foot-col">
+        <div class="ptl-foot-title">Powered by</div>
+        <p>Case Triage Agent — a multi-agent system for Service Cloud. <a href="https://github.com/vikram-vunduru/case-triage-agent" target="_blank" rel="noopener">View source on GitHub</a></p>
       </div>
-      <div class="portal-foot-col">
-        <div class="portal-foot-title">Contact</div>
-        <p><a href="mailto:hi@vikramvunduru.com">hi@vikramvunduru.com</a><br>
-        <a href="https://www.linkedin.com/in/vikramvunduru/" target="_blank" rel="noopener">LinkedIn</a></p>
+      <div class="ptl-foot-col">
+        <div class="ptl-foot-title">Contact</div>
+        <p>
+          <a href="mailto:hi@vikramvunduru.com">hi@vikramvunduru.com</a><br>
+          <a href="https://www.linkedin.com/in/vikramvunduru/" target="_blank" rel="noopener">LinkedIn</a>
+        </p>
       </div>
     </div>
   </footer>
 
-  <script src="portal.js?v=portal-1"></script>
+  <script src="portal.js?v=portal-2"></script>
 </body>
 </html>

@@ -288,7 +288,7 @@ function populateCaseSelect(cases, previousIds = null) {
     opt.value = c.Id;
     const seen = _newCaseFirstSeenAt.get(c.Id);
     const isNew = seen && (now - seen) < NEW_BADGE_TTL_MS;
-    opt.textContent = `${isNew ? "🆕 " : ""}${c.CaseNumber} — ${c.Subject}`;
+    opt.textContent = `${isNew ? "[NEW] " : ""}${c.CaseNumber} — ${c.Subject}`;
     sel.appendChild(opt);
   }
 }

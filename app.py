@@ -377,6 +377,14 @@ if ROUTE_PREFIX:
         # trailing slash so the HTML's relative asset URLs resolve correctly.
         return RedirectResponse(url=f"{ROUTE_PREFIX}/")
 
+    @outer.get("/support")
+    @outer.get("/support/")
+    def _redirect_support_to_prefix():
+        # Canonical portal URL is /case-triage-agent/support so it sits
+        # under the agent demo path. Anyone hitting bare /support is
+        # bounced there so the URL bar always shows the canonical form.
+        return RedirectResponse(url=f"{ROUTE_PREFIX}/support")
+
     # Production: agents.vikramvunduru.com/case-triage-agent/...
     outer.mount(ROUTE_PREFIX, api_app)
     # Local dev: http://127.0.0.1:8000/...  (same routes, served at the root)
